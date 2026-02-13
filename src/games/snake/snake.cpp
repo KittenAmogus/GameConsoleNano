@@ -1,191 +1,213 @@
 #include "snake.h"
 
-Vector2i_8 snake[SNAKE_MAX_LENGTH];
-Vector2i_8 currentDirection = {1, 0};
-Vector2i_8 lastDirection = {1, 0};
-Vector2i_8 applePos;
+static Vector2i_8 snake[SNAKE_MAX_LENGTH];
+static Vector2i_8 currentDirection;
+static Vector2i_8 nextDirection;
+static Vector2i_8 applePosition;
 
-uint8_t headIdx;
-uint8_t tailIdx;
+static uint16_t gameScore;
+static uint8_t headIdx;
+static uint8_t tailIdx;
 
-bool needRedraw = false;
-bool changed = false;
-bool justSpawned = true;
-uint16_t score;
+static bool joyStickMovedX;
+static bool joyStickMovedY;
+static bool appleIsWhite;
+static bool needsRedraw;
 
-unsigned long lastFrame;
+static void prepareSnake()
+{
+    // Set default values
+    memset(snake, 0, sizeof(snake));
+    currentDirection = {1, 0};
+    nextDirection = {1, 0};
+    applePosition = {
+        ((SNAKE_GRID_WIDTH >> 1) + 3),
+        (SNAKE_GRID_HEIGHT >> 1)};
+
+    joyStickMovedX = false;
+    joyStickMovedY = false;
+    needsRedraw = false;
+    appleIsWhite = true;
+    display.clearDisplay();
+
+    headIdx = 0;
+    tailIdx = 0;
+
+    for (uint8_t i = 0; i <= SNAKE_INIT_LENGTH; i++)
+    {
+        // Create body part
+        int8_t posX = (SNAKE_GRID_WIDTH >> 1) - i;
+        int8_t posY = (SNAKE_GRID_HEIGHT >> 1);
+        snake[headIdx] = {posX, posY};
+
+        // Draw it
+        display.fillRect(
+            posX << 2, posY << 2,
+            SNAKE_GRID_SIZE, SNAKE_GRID_SIZE,
+            WHITE);
+
+        headIdx++;
+    }
+
+    display.display();
+    Vector2i_8 tailPos = snake[0];
+
+    // Clear tail
+    display.fillRect(
+        tailPos.x << 2, tailPos.y << 2,
+        SNAKE_GRID_SIZE, SNAKE_GRID_SIZE,
+        BLACK);
+}
 
 static void draw()
 {
-    // display.clearDisplay();
-    needRedraw = false;
+    needsRedraw = false;
 
-    Vector2i_8 headPos = snake[(headIdx - 1) & 63];
-    Vector2i_8 tailPos = snake[(tailIdx - 2) & 63];
+    // Get positions from array
+    Vector2i_8 headPosition = snake[headIdx];
+    Vector2i_8 tailPosition = snake[tailIdx];
 
-    display.fillRect(tailPos.x << 2, tailPos.y << 2, SNAKE_GRID_SIZE, SNAKE_GRID_SIZE, BLACK);
-    display.fillRect(headPos.x << 2, headPos.y << 2, SNAKE_GRID_SIZE, SNAKE_GRID_SIZE, WHITE);
+    // Clear tail
+    display.fillRect(
+        tailPosition.x << 2, tailPosition.y << 2,
+        SNAKE_GRID_SIZE, SNAKE_GRID_SIZE,
+        BLACK);
 
-    display.fillRect(applePos.x << 2, applePos.y << 2, SNAKE_GRID_SIZE, SNAKE_GRID_SIZE, WHITE);
+    // Draw head
+    display.fillRect(
+        headPosition.x << 2, headPosition.y << 2,
+        SNAKE_GRID_SIZE, SNAKE_GRID_SIZE,
+        WHITE);
+
+    // Draw apple
+    display.fillRect(
+        applePosition.x << 2, applePosition.y << 2,
+        SNAKE_GRID_SIZE, SNAKE_GRID_SIZE,
+        appleIsWhite ? WHITE : BLACK);
 
     display.display();
 }
 
-static void gameOver()
+static void onGameOver()
 {
-    draw();
-    delay(1000);
-    display.clearDisplay();
-    display.setTextColor(WHITE);
-    display.setTextSize(2);
-    display.setCursor(10, 20);
-    display.print("Game Over");
-    display.display();
+    Serial.println(F("Game Over!"));
+    delay(500);
 }
 
-static bool collideWithSnake(int16_t x, int16_t y, bool excludeHead)
+static bool collideWithSnake(Vector2i_8 pos, bool excludeHead)
 {
+    int8_t posIndex = tailIdx;
 
-    int8_t i = (tailIdx - 1) & 63;
-    int8_t excl = (headIdx - 1) & 63;
-
-    while (i != headIdx)
+    while (posIndex != headIdx)
     {
-        i = (i + 1) & 63;
-        Vector2i_8 pos = snake[i];
-        if (pos.x == x && pos.y == y)
+        posIndex = (posIndex + 1) & 63;
+        Vector2i_8 checkPos = snake[posIndex];
+
+        if (checkPos.x == pos.x && checkPos.y == pos.y)
         {
-            if (excludeHead && i == excl)
-                continue;
-            else
-            {
+            if (!(excludeHead && posIndex == headIdx))
                 return true;
-            }
         }
     }
+
     return false;
 }
 
-static void handleInput(bool overX, bool overZeroX, bool overY, bool overZeroY)
+static void onAppleEaten()
 {
-    if (overX)
+    do
     {
-        int16_t newPos = overZeroX ? -1 : 1;
-        if (newPos != -lastDirection.x)
-        {
-            currentDirection.x = newPos;
-            currentDirection.y = 0;
-        }
-    }
-    else if (overY)
+        applePosition.x = random(0, SNAKE_GRID_WIDTH - 1);
+        applePosition.y = random(0, SNAKE_GRID_HEIGHT - 1);
+    } while (
+        collideWithSnake(applePosition, false));
+
+    tailIdx = (tailIdx - 1) & 63;
+}
+
+static void handleInput(uint16_t joyStickX, uint16_t joyStickY)
+{
+    bool overTresholdX = (joyStickX < TRESHOLD || joyStickX > CENTER + TRESHOLD);
+    bool overTresholdY = (joyStickY < TRESHOLD || joyStickY > CENTER + TRESHOLD);
+    bool overTreshold = overTresholdX || overTresholdY;
+
+    int8_t nextDirX = joyStickX > CENTER ? -1 : 1;
+    int8_t nextDirY = joyStickY > CENTER ? -1 : 1;
+
+    if (!joyStickMovedX && overTresholdX)
     {
-        int16_t newPos = overZeroY ? -1 : 1;
-        if (newPos != -lastDirection.y)
-        {
-            currentDirection.x = 0;
-            currentDirection.y = newPos;
-        }
+        if (nextDirX != -currentDirection.x)
+            nextDirection.x = nextDirX;
     }
+    if (!joyStickMovedY && overTresholdY)
+    {
+        if (nextDirY != -currentDirection.y)
+            nextDirection.y = nextDirY;
+    }
+
+    joyStickMovedX = overTresholdX;
+    joyStickMovedY = overTresholdY;
+    needsRedraw = overTreshold;
 }
 
 void startSnake()
 {
-    memset(snake, 0, sizeof(snake));
-    currentDirection = {1, 0};
-    headIdx = 0;
-    tailIdx = 0;
+    prepareSnake();
+    Serial.println(--headIdx);
 
-    changed = false;
-    justSpawned = true;
-    needRedraw = true;
+    unsigned long lastFrame = millis();
 
-    applePos = {(SNAKE_GRID_WIDTH >> 1) + 3, (SNAKE_GRID_HEIGHT >> 1)};
+    uint16_t joyStickX;
+    uint16_t joyStickY;
 
-    display.clearDisplay();
-    for (uint8_t i = 0; i < SNAKE_INIT_LENGTH; i++)
-    {
-        int8_t posX = (16) - i;
-        int8_t posY = (8);
-        snake[headIdx++] = {posX, posY};
-        display.fillRect(posX << 2, posY << 2, SNAKE_GRID_SIZE, SNAKE_GRID_SIZE, WHITE);
-    }
-    display.display();
-
-    lastFrame = millis();
-
-    bool joyStickMoved = false;
-    int16_t joyY;
-    int16_t joyX;
-
-    bool overTresholdY;
     bool overTresholdX;
+    bool overTresholdY;
     bool overTreshold;
 
     while (true)
     {
-        joyX = joyStick.getX() - CENTER;
-        joyY = joyStick.getY() - CENTER;
+        joyStickX = joyStick.getX();
+        joyStickY = joyStick.getY();
 
-        overTresholdY = (joyY > TRESHOLD) || (joyY < -TRESHOLD);
-        overTresholdX = (joyX > TRESHOLD) || (joyX < -TRESHOLD);
-        overTreshold = overTresholdX || overTresholdY;
-
-        if (!joyStickMoved && overTreshold)
-        {
-            needRedraw = true;
-            if (!changed)
-            {
-                handleInput(overTresholdX, joyX > 0, overTresholdY, joyY > 0);
-                changed = true;
-            }
-        }
-        joyStickMoved = overTreshold;
+        handleInput(joyStickX, joyStickY);
 
         if (millis() - lastFrame >= SNAKE_TICK_TIME)
         {
-            lastDirection.x = currentDirection.x;
-            lastDirection.y = currentDirection.y;
-            changed = false;
-            Vector2i_8 *headPos = &snake[headIdx];
-            *headPos = snake[(headIdx - 1) & 63];
-            headPos->x += currentDirection.x;
-            headPos->y += currentDirection.y;
-            headPos->x &= 31;
-            headPos->y &= 15;
+            needsRedraw = true;
             lastFrame = millis();
-            needRedraw = true;
+
+            if (nextDirection.x != 0 && nextDirection.y != 0)
+            {
+                if (currentDirection.x != 0)
+                    nextDirection.x = 0;
+                else
+                    nextDirection.y = 0;
+            }
+
+            currentDirection = nextDirection;
+
+            Vector2i_8 *headPosition = &snake[(headIdx + 1) & 63];
+            *headPosition = snake[headIdx];
+            headPosition->x += currentDirection.x;
+            headPosition->y += currentDirection.y;
+            headPosition->x &= 31;
+            headPosition->y &= 15;
 
             headIdx = (headIdx + 1) & 63;
+            tailIdx = (tailIdx + 1) & 63;
 
-            if (justSpawned)
-                justSpawned = false;
-            else if (collideWithSnake(headPos->x, headPos->y, true))
+            if (collideWithSnake(*headPosition, true))
             {
-                gameOver();
+                onGameOver();
                 return;
-                // Serial.println("TOUCH HEAD");
             }
 
-            if (!collideWithSnake(applePos.x, applePos.y, false))
+            if (collideWithSnake(applePosition, false))
             {
-                tailIdx = (tailIdx + 1) & 63;
-            }
-            else
-            {
-                do
-                {
-                    applePos.x = random(0, SNAKE_GRID_WIDTH - 1);
-                    applePos.y = random(0, SNAKE_GRID_HEIGHT - 1);
-                } while (collideWithSnake(applePos.x, applePos.y, false));
-                needRedraw = true;
+                onAppleEaten();
             }
         }
-
-        // Will never happen, i know
-        if (headIdx == tailIdx)
-            return;
-
-        if (needRedraw)
+        if (needsRedraw)
             draw();
     }
 }
