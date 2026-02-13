@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "author": "Vsevolod Ilin",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-breadboard-half",
+      "id": "bb1",
+      "top": 141,
+      "left": 12.4,
+      "attrs": { "color": "#575756" }
+    },
+    {
+      "type": "wokwi-arduino-nano",
+      "id": "nano",
+      "top": 223.8,
+      "left": -113.7,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": 214.34,
+      "left": 115.43,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    { "type": "wokwi-analog-joystick", "id": "joystick1", "top": 76.2, "left": 5.4, "attrs": {} },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 194.4,
+      "left": 232.2,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "joystick1:VCC", "bb1:tp.7", "red", [ "v0" ] ],
+    [ "joystick1:GND", "bb1:tn.7", "black", [ "v0" ] ],
+    [ "nano:5V", "bb1:bp.1", "red", [ "v0" ] ],
+    [ "nano:GND.1", "bb1:bn.1", "black", [ "v0" ] ],
+    [ "bb1:2t.b", "nano:A0", "magenta", [ "v0" ] ],
+    [ "bb1:3t.b", "nano:A1", "cyan", [ "v0" ] ],
+    [ "bb1:4t.b", "nano:7", "limegreen", [ "v0" ] ],
+    [ "nano:A5", "bb1:7b.g", "#8f4814", [ "h0" ] ],
+    [ "nano:A4", "bb1:6b.f", "gold", [ "h0" ] ],
+    [ "bb1:7b.g", "bb1:15t.c", "#8f4814", [ "v0" ] ],
+    [ "bb1:6b.f", "bb1:16t.b", "gold", [ "v0" ] ],
+    [ "oled1:GND", "bb1:tn.11", "black", [ "v0" ] ],
+    [ "oled1:VCC", "bb1:tp.12", "red", [ "v0" ] ],
+    [ "bb1:tp.17", "bb1:bp.17", "red", [ "v0" ] ],
+    [ "bb1:bn.18", "bb1:tn.18", "black", [ "v0" ] ],
+    [ "nano:3", "bb1:8b.j", "green", [ "h0" ] ],
+    [ "bb1:8b.j", "bb1:23b.j", "green", [ "v0" ] ],
+    [ "bz1:2", "bb1:23b.j", "green", [ "v0" ] ],
+    [ "bz1:1", "bb1:bn.20", "black", [ "v0" ] ],
+    [ "oled1:GND", "bb1:13t.d", "", [ "$bb" ] ],
+    [ "oled1:VCC", "bb1:14t.d", "", [ "$bb" ] ],
+    [ "oled1:SCL", "bb1:15t.d", "", [ "$bb" ] ],
+    [ "oled1:SDA", "bb1:16t.d", "", [ "$bb" ] ],
+    [ "joystick1:VCC", "bb1:1t.a", "", [ "$bb" ] ],
+    [ "joystick1:VERT", "bb1:2t.a", "", [ "$bb" ] ],
+    [ "joystick1:HORZ", "bb1:3t.a", "", [ "$bb" ] ],
+    [ "joystick1:SEL", "bb1:4t.a", "", [ "$bb" ] ],
+    [ "joystick1:GND", "bb1:5t.a", "", [ "$bb" ] ],
+    [ "bz1:1", "bb1:24b.h", "", [ "$bb" ] ],
+    [ "bz1:2", "bb1:25b.h", "", [ "$bb" ] ]
+  ],
+  "dependencies": {}
+}

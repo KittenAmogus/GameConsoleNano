@@ -1,0 +1,5 @@
+[wokwi]
+version = 1
+firmware = './build/GameConsoleNano.ino.hex'
+elf = './build/GameConsoleNano.ino.elf'
+
