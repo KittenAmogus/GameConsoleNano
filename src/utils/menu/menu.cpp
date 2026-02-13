@@ -1,16 +1,17 @@
 #include "menu.h"
 
+// Include all games, apps
 #include "games/snake/snake.h"
 
-// #include "utils/power-save/power-save.h"
-
+// For input
 static bool needRedraw = true;
 static bool joyStickMoved = false;
 
 int8_t menuPage = 0;
 int8_t menuSelect = 0;
 
-void startGame()
+// On button press
+static void startGame()
 {
     switch (menuSelect)
     {
@@ -19,23 +20,31 @@ void startGame()
     }
 }
 
+// Draw
 static void draw()
 {
+    // Unset flag
     needRedraw = false;
     display.clearDisplay();
     display.setTextSize(2);
+
+    // Draw all strings
     for (uint8_t i = 0; i < 3; i++)
     {
-
+        // Offset in menuValues
         uint16_t iOffset = (menuPage << 1) + menuPage + i;
         if (iOffset >= MENU_LENGTH)
             break;
 
+        // Load from PROGMEM
         MenuValueString curString = (MenuValueString)pgm_read_ptr(&(menuValues[iOffset]));
+
+        // Color depends if is selected
         display.setTextColor(i != menuSelect);
         display.setCursor(20, 2 + i * 20);
         if (i == menuSelect)
         {
+            // If selected draw rect over string
             display.fillRect(0, i * 20 + 1, SCREEN_WIDTH, 20, WHITE);
         }
         display.print(curString);
@@ -44,29 +53,33 @@ static void draw()
     display.display();
 }
 
+// For loop()
 void startMenu()
 {
     needRedraw = true;
 
+    // For input
     int16_t joyY = 0;
     bool overTresholdY;
     bool changePage;
     bool overZeroY;
 
-    // Serial.println(PAGE_COUNT);
-
+    // Menu loop
     while (true)
     {
+        // Get input
         joyY = joyStick.getY() - CENTER;
         overTresholdY = joyY > TRESHOLD || joyY < -TRESHOLD;
         overZeroY = joyY > 0;
 
+        // Handle input
         if (joyStick.isButtonPressed())
         {
             startGame();
             return;
         }
 
+        // TODO : Create 'static void handleInput(), clean up code'
         if (overTresholdY && !joyStickMoved)
         {
             if (!overZeroY)
@@ -109,11 +122,12 @@ void startMenu()
         }
         joyStickMoved = overTresholdY;
 
+        // Redraw only if changed select
         if (needRedraw)
         {
             draw();
         }
-        // startCpuWaiting(4);
+        // TODO : Add sleep mode
         delay(50);
     }
 }
