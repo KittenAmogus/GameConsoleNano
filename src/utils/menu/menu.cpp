@@ -1,6 +1,7 @@
 #include "menu.h"
 
 // Include all games, apps
+#include "games/flappy/flappy.h"
 #include "games/snake/snake.h"
 
 // For input
@@ -15,8 +16,12 @@ static void startGame()
 {
     switch (menuSelect)
     {
+    case 0:
+        startFlappy();
+        break;
     case 1:
         startSnake();
+        break;
     }
 }
 
