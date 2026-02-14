@@ -101,9 +101,20 @@ static void draw()
 // If snake crashed / reached maximum value
 static void onGameOver()
 {
-    // TODO : Change to graphics
-    Serial.println(F("Game Over!"));
-    Serial.println(gameScore);
+    display.clearDisplay();
+
+    // Setup text
+    display.setTextSize(2);
+    display.setTextColor(WHITE);
+    display.setCursor(10, 0);
+
+    // Draw score
+    display.print(F("Game Over"));
+    display.setCursor(10, 20);
+    display.print(gameScore);
+
+    // Refresh
+    display.display();
     delay(500);
 }
 
@@ -148,7 +159,7 @@ static void onAppleEaten()
     gameScore++;
 
     // If no more space in snake[]
-    if (tailIdx == ((headIdx - 1) & 63))
+    if (tailIdx == ((headIdx + 1) & 63))
     {
         // Maximum score (win)
         gameScore = -1;
