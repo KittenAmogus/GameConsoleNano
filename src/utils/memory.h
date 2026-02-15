@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // Disable serial
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -74,8 +74,11 @@ typedef struct Figure
 typedef struct TetrisData
 {
     uint8_t gameField[25];
-    uint16_t tickTime : 10; // Up to 1024 ms
-    uint16_t unused : 6;
+    // delay = (tickTimePower << 6)
+    // (fast * 64)
+    uint8_t tickTimePower : 4;
+    uint8_t tickTimePrevPower : 4;
+    unsigned long lastMovedXMillis;
     Figure figure;
 } TetrisData;
 

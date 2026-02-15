@@ -1,6 +1,7 @@
 #include "menu.h"
 
 // Include all games, apps
+#include "games/tetris/tetris.h"
 #include "games/flappy/flappy.h"
 #include "games/snake/snake.h"
 
@@ -10,7 +11,8 @@ extern GlobalData globalData;
 // On button press
 static void startGame()
 {
-    randomSeed(analogRead(A3));
+    // randomSeed(analogRead(A3));  // Work only on real hardware
+    randomSeed(micros());
     switch (global.gameScore)
     {
     case 0:
@@ -18,6 +20,9 @@ static void startGame()
         break;
     case 1:
         startSnake();
+        break;
+    case 2:
+        startTetris();
         break;
     }
 }
