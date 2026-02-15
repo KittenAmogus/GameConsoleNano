@@ -1,4 +1,4 @@
-#ifndef SNAKE_H
+/*#ifndef SNAKE_H
 #define SNAKE_H
 
 // Integer defines, pin defines
@@ -26,3 +26,4 @@
 void startSnake();
 
 #endif SNAKE_H
+*/

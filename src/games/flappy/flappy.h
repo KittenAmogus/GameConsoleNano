@@ -7,7 +7,8 @@
 // Some utils, idk
 #include "utils/joystick.h"
 #include "utils/display.h"
-#include "utils/vector.h"
+#include "utils/memory.h"
+// #include "utils/vector.h"
 
 // Speed
 #define PIPE_SPEED 3
@@ -28,14 +29,6 @@
 
 #define FLAPPY_TICK_TIME 30 // ~30 FPS
 #define FLAPPY_DP_COUNT 8   // Decimal Places (00000000 . 00000000)
-
-typedef struct Pipe
-{
-    int16_t x;
-    int16_t previousX;
-    uint8_t offsetFromY;
-    bool reached;
-} Pipe;
 
 void startFlappy();
 

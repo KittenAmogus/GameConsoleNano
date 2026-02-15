@@ -1,4 +1,4 @@
-#include "snake.h"
+/*#include "snake.h"
 
 // Positions
 static Vector2i_8 snake[SNAKE_MAX_LENGTH];
@@ -273,4 +273,4 @@ void startSnake()
         if (needsRedraw)
             draw();
     }
-}
+}*/

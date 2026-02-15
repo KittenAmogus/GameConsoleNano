@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 
+#include "utils/memory.h"
 #include "utils/display.h"
 #include "utils/joystick.h"
 
@@ -24,7 +25,7 @@ const MenuValueString menuValue7 PROGMEM = "Shoot ";
 
 // Game count in one page
 #define PAGE_SIZE 3
-const uint8_t PAGE_COUNT = MENU_LENGTH / PAGE_SIZE + (MENU_LENGTH << 15 != 0);
+#define PAGE_COUNT = (MENU_LENGTH / PAGE_SIZE + (MENU_LENGTH << 15 != 0));
 
 // Main menu values
 const MenuValueString menuValues[MENU_LENGTH] PROGMEM =

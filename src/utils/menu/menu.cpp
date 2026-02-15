@@ -2,137 +2,111 @@
 
 // Include all games, apps
 #include "games/flappy/flappy.h"
-#include "games/snake/snake.h"
+// #include "games/snake/snake.h"
 
-// For input
-static bool needRedraw = true;
-static bool joyStickMoved = false;
-
-int8_t menuPage = 0;
-int8_t menuSelect = 0;
+extern GlobalData globalData;
+#define global globalData
 
 // On button press
 static void startGame()
 {
-    switch (menuSelect)
+    switch (global.gameScore)
     {
     case 0:
         startFlappy();
         break;
     case 1:
-        startSnake();
+        // startSnake();
         break;
     }
 }
 
-// Draw
 static void draw()
 {
-    // Unset flag
-    needRedraw = false;
+    global.needRedraw = false;
     display.clearDisplay();
-    display.setTextSize(2);
 
-    // Draw all strings
-    for (uint8_t i = 0; i < 3; i++)
+    display.fillRect(
+        0, 0,
+        SCREEN_WIDTH, (1 << 5) - (1 << 3),
+        WHITE);
+
+    for (uint8_t i = 0; i < PAGE_SIZE; i++)
     {
-        // Offset in menuValues
-        uint16_t iOffset = (menuPage << 1) + menuPage + i;
-        if (iOffset >= MENU_LENGTH)
-            break;
+        MenuValueString curStr = (char *)pgm_read_word(&(menuValues[global.gameScore + i]));
 
-        // Load from PROGMEM
-        MenuValueString curString = (MenuValueString)pgm_read_ptr(&(menuValues[iOffset]));
+        display.setCursor(10, 1 + (i << 5) - (i << 3));
+        display.setTextColor(i == 0 ? BLACK : WHITE);
+        display.setTextSize(2);
 
-        // Color depends if is selected
-        display.setTextColor(i != menuSelect);
-        display.setCursor(20, 2 + i * 20);
-        if (i == menuSelect)
+        for (uint8_t i = 0; i < PAGE_SIZE; i++)
         {
-            // If selected draw rect over string
-            display.fillRect(0, i * 20 + 1, SCREEN_WIDTH, 20, WHITE);
+            if (global.gameScore + i >= MENU_LENGTH)
+                break;
+
+            MenuValueString curStr = (char *)pgm_read_word(&(menuValues[global.gameScore + i]));
+            display.setCursor(10, 1 + (i << 5) - (i << 3));
+            display.setTextColor(i == 0 ? BLACK : WHITE);
+            display.setTextSize(2);
+
+            display.print(curStr);
         }
-        display.print(curString);
-        // Serial.println(curString);
     }
     display.display();
 }
 
-// For loop()
+static void handleInput()
+{
+    if (!global.joyStickData.wasMovedY && global.joyStickData.isOverTresholdY)
+    {
+        global.needRedraw = true;
+        if (global.joyStickData.isOverCenterY)
+        {
+            if (global.gameScore != 0)
+                global.gameScore--;
+            else
+                global.gameScore = MENU_LENGTH - 1;
+        }
+        else
+        {
+            if (global.gameScore < MENU_LENGTH - 1)
+                global.gameScore++;
+            else
+                global.gameScore = 0;
+        }
+    }
+    global.joyStickData.wasMovedY = global.joyStickData.isOverTresholdY;
+}
+
 void startMenu()
 {
-    needRedraw = true;
+    global.needRedraw = true;
+    global.gameScore = 0;
 
-    // For input
-    int16_t joyY = 0;
-    bool overTresholdY;
-    bool changePage;
-    bool overZeroY;
+    uint16_t joyStickY;
 
-    // Menu loop
     while (true)
     {
-        // Get input
-        joyY = joyStick.getY() - CENTER;
-        overTresholdY = joyY > TRESHOLD || joyY < -TRESHOLD;
-        overZeroY = joyY > 0;
+        // Get user input
+        joyStickY = joyStick.getY();
+        global.joyStickData.isOverTresholdY = (joyStickY > CENTER + TRESHOLD ||
+                                               joyStickY < CENTER - TRESHOLD);
+        global.joyStickData.isOverCenterY = joyStickY > CENTER;
+        global.joyStickData.isButtonPressed = joyStick.isButtonPressed();
+        handleInput();
 
-        // Handle input
-        if (joyStick.isButtonPressed())
+        if (global.joyStickData.isButtonPressed)
         {
+            while (global.joyStickData.isButtonPressed)
+            {
+                global.joyStickData.isButtonPressed = joyStick.isButtonPressed();
+                delay(10);
+            }
             startGame();
             return;
         }
 
-        // TODO : Create 'static void handleInput(), clean up code'
-        if (overTresholdY && !joyStickMoved)
-        {
-            if (!overZeroY)
-            {
-                menuSelect++;
-                changePage = menuSelect >= PAGE_SIZE;
-                changePage |= (menuPage << 1) + menuPage + menuSelect >= MENU_LENGTH;
-
-                if (changePage)
-                {
-                    menuPage++;
-                    menuSelect = 0;
-                    if (menuPage >= PAGE_COUNT)
-                    {
-                        menuPage = 0;
-                    }
-                }
-            }
-            else
-            {
-                menuSelect--;
-                changePage = menuSelect < 0;
-                if (changePage)
-                {
-                    menuSelect = PAGE_SIZE - 1;
-                    menuPage--;
-                    if (menuPage < 0)
-                    {
-                        menuPage = PAGE_COUNT - 1;
-                        changePage = (menuPage << 1) + menuPage + menuSelect >= MENU_LENGTH;
-                        while (changePage)
-                        {
-                            menuSelect--;
-                            changePage = (menuPage << 1) + menuPage + menuSelect >= MENU_LENGTH;
-                        }
-                    }
-                }
-            }
-            needRedraw = true;
-        }
-        joyStickMoved = overTresholdY;
-
-        // Redraw only if changed select
-        if (needRedraw)
-        {
+        if (global.needRedraw)
             draw();
-        }
-        // TODO : Add sleep mode
-        delay(50);
     }
 }

@@ -1,40 +1,22 @@
 #include "flappy.h"
 
-// Pipes
-Pipe pipes[PIPE_COUNT];
-
-// Integer
-static uint16_t gameScore;
-static int16_t birdSpeed;
-static int16_t birdPositionY;
-static int16_t birdPrevPositionY;
-
-// Boolean
-static bool needsRedraw;
-static bool joyStickMovedX;
-static bool joyStickMovedY;
+extern GlobalData globalData;
+extern GameData gameData;
+#define global globalData
+#define game gameData.flappyData
 
 static void prepareFlappy()
 {
+    memset(&game, 0, sizeof(game));
+    global.gameScore = 0;
+    global.needRedraw = true;
+    game.birdPositionY = (SCREEN_HEIGHT >> 1) << FLAPPY_DP_COUNT;
     display.clearDisplay();
-
-    // Pipe
-    memset(pipes, 0, sizeof(pipes));
-
-    // Integer
-    birdPositionY = (SCREEN_HEIGHT >> 1) << FLAPPY_DP_COUNT;
-    birdPrevPositionY = birdPositionY;
-    birdSpeed = 0;
-    gameScore = 0;
-
-    // Boolean
-    needsRedraw = true;
-    joyStickMovedX = false;
-    joyStickMovedY = false;
 }
 
 static void draw()
 {
+    global.needRedraw = false;
 
     // Clear last score
     display.fillRect(
@@ -42,21 +24,9 @@ static void draw()
         36, 16,
         BLACK);
 
-    // Clear bird
-    display.fillRect(
-        BIRD_X, (birdPrevPositionY >> FLAPPY_DP_COUNT),
-        BIRD_SIZE, BIRD_SIZE,
-        BLACK);
-
-    for (uint8_t pipeId = 0; pipeId < PIPE_COUNT; pipeId++)
+    for (uint8_t i = 0; i < PIPE_COUNT; i++)
     {
-        Pipe *pipe = &pipes[pipeId];
-
-        // Clear "tail"
-        display.fillRect(
-            pipe->previousX, 0,
-            PIPE_WIDTH, SCREEN_HEIGHT,
-            BLACK);
+        FlappyPipe *pipe = (i == 0 ? &game.firstPipe : &game.secondPipe);
 
         // Draw pipe
         display.fillRect(
@@ -66,13 +36,14 @@ static void draw()
 
         // Draw gap
         display.fillRect(
-            pipe->x, pipe->offsetFromY,
+            pipe->x, pipe->offsetY,
             PIPE_GAP_SIZE, PIPE_GAP_SIZE,
             BLACK);
     }
+
     // Draw bird
     display.fillRect(
-        BIRD_X, (birdPositionY >> FLAPPY_DP_COUNT),
+        BIRD_X, (game.birdPositionY >> FLAPPY_DP_COUNT),
         BIRD_SIZE, BIRD_SIZE,
         WHITE);
 
@@ -81,16 +52,9 @@ static void draw()
     display.setTextSize(2);
     display.setCursor(0, 0);
 
-    display.print(gameScore);
+    display.print(global.gameScore);
 
     display.display();
-}
-
-static void resetPipe(Pipe *pipe)
-{
-    pipe->x = SCREEN_WIDTH;
-    pipe->offsetFromY = random(PIPE_MIN_Y, PIPE_MAX_Y);
-    pipe->reached = false;
 }
 
 static void onGameOver()
@@ -103,45 +67,42 @@ static void onGameOver()
     display.setTextSize(2);
     display.setCursor(10, 20);
     display.print(F("SCORE: "));
-    display.print(gameScore);
+    display.print(global.gameScore);
 
     display.display();
     delay(500);
 }
 
-static bool collideWithPipe(Pipe *pipe)
+static bool collideWithPipe(FlappyPipe *pipe)
 {
-    int16_t shiftedY = (birdPositionY >> FLAPPY_DP_COUNT);
+    int16_t shiftedY = (game.birdPositionY >> FLAPPY_DP_COUNT);
 
     if (pipe->x + PIPE_WIDTH < BIRD_X || pipe->x - BIRD_SIZE > BIRD_X)
     {
-        // Serial.println(F("First"));
         return false;
     }
 
-    if (shiftedY >= pipe->offsetFromY &&
-        shiftedY <= pipe->offsetFromY + PIPE_GAP_SIZE - BIRD_SIZE)
+    if (shiftedY >= pipe->offsetY &&
+        shiftedY <= pipe->offsetY + PIPE_GAP_SIZE - BIRD_SIZE)
     {
-        gameScore += !pipe->reached;
-        pipe->reached = true;
+        if (!pipe->claimed)
+        {
+            global.gameScore++;
+            pipe->claimed = true;
+        }
         return false;
     }
 
     return true;
 }
 
-static void handleInput(uint16_t joyStickX, uint16_t joyStickY)
+static void handleInput()
 {
-    bool overTresholdX = (joyStickX < CENTER - TRESHOLD) || (joyStickX > CENTER + TRESHOLD);
-    bool overTresholdY = (joyStickY < CENTER - TRESHOLD) || (joyStickY > CENTER + TRESHOLD);
-    bool overZeroX = joyStickX > CENTER;
-    bool overZeroY = joyStickY > CENTER;
-
-    if (!joyStickMovedY && overTresholdY)
+    if (!global.joyStickData.wasMovedY && global.joyStickData.isOverTresholdY)
     {
-        birdSpeed = -FLAPPY_JUMP_SPEED;
+        game.birdVelocityY = -FLAPPY_JUMP_SPEED;
     }
-    joyStickMovedX = overTresholdX;
+    global.joyStickData.wasMovedY = global.joyStickData.isOverTresholdY;
 }
 
 void startFlappy()
@@ -150,34 +111,41 @@ void startFlappy()
 
     for (uint8_t i = 0; i < PIPE_COUNT; i++)
     {
-        Pipe *pipe = &pipes[i];
-        resetPipe(pipe);
-        pipe->x += SCREEN_WIDTH + (i * PIPE_DISTANCE);
-        pipe->previousX = pipe->x;
+        FlappyPipe *pipe = (i == 0 ? &game.firstPipe : &game.secondPipe);
+        pipe->claimed = false;
+        pipe->x = SCREEN_WIDTH + (i * PIPE_DISTANCE);
+        pipe->offsetY = random(PIPE_MIN_Y, PIPE_MAX_Y);
     }
 
-    uint16_t joyStickX;
     uint16_t joyStickY;
-
-    unsigned long lastFrame = millis();
 
     while (true)
     {
-        joyStickX = joyStick.getX();
+        // Get user input
         joyStickY = joyStick.getY();
+        global.joyStickData.isOverTresholdY = (joyStickY > CENTER + TRESHOLD ||
+                                               joyStickY < CENTER - TRESHOLD);
+        global.joyStickData.isOverCenterY = joyStickY > CENTER;
+        handleInput();
 
-        handleInput(joyStickX, joyStickY);
-
-        if (millis() - lastFrame > FLAPPY_TICK_TIME)
+        global.currFrame = millis();
+        if (global.currFrame - global.lastFrame > FLAPPY_TICK_TIME)
         {
-            lastFrame = millis();
-            needsRedraw = true;
+            global.lastFrame = global.currFrame;
+            global.needRedraw = true;
 
-            birdPrevPositionY = birdPositionY;
-            birdPositionY += (birdSpeed);
-            birdSpeed += FLAPPY_FALL_SPEED; //  << FLAPPY_DP_COUNT;
+            // Clear bird
+            display.fillRect(
+                BIRD_X, game.birdPositionY >> FLAPPY_DP_COUNT,
+                BIRD_SIZE, BIRD_SIZE,
+                BLACK);
 
-            if ((birdPositionY >> FLAPPY_DP_COUNT) < 0 || (birdPositionY >> FLAPPY_DP_COUNT) + BIRD_SIZE > SCREEN_HEIGHT)
+            game.birdPositionY += (game.birdVelocityY);
+            game.birdVelocityY += FLAPPY_FALL_SPEED;
+
+            uint8_t birdPosY = (game.birdPositionY >> FLAPPY_DP_COUNT);
+
+            if (birdPosY > SCREEN_HEIGHT - BIRD_SIZE)
             {
                 onGameOver();
                 return;
@@ -185,12 +153,19 @@ void startFlappy()
 
             for (uint8_t pipeId = 0; pipeId < PIPE_COUNT; pipeId++)
             {
-                Pipe *pipe = &pipes[pipeId];
-                pipe->previousX = pipe->x;
+                FlappyPipe *pipe = (pipeId == 0 ? &game.firstPipe : &game.secondPipe);
+                display.fillRect(
+                    pipe->x, 0,
+                    PIPE_WIDTH, SCREEN_HEIGHT,
+                    BLACK);
                 pipe->x -= PIPE_SPEED;
 
-                if (pipe->x < -PIPE_WIDTH)
-                    resetPipe(pipe);
+                if (pipe->x >= 0xF0)
+                {
+                    pipe->claimed = false;
+                    pipe->x = SCREEN_WIDTH;
+                    pipe->offsetY = random(PIPE_MIN_Y, PIPE_MAX_Y);
+                }
                 else if (collideWithPipe(pipe))
                 {
                     onGameOver();
@@ -199,7 +174,7 @@ void startFlappy()
             }
         }
 
-        if (needsRedraw)
+        if (global.needRedraw)
             draw();
     }
 }

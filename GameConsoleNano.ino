@@ -2,14 +2,21 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include "utils/memory.h"
 #include "utils/config.h"
 #include "utils/menu/menu.h"
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 JoyStick joyStick;
 
+GlobalData globalData;
+GameData gameData;
+
 void setup()
 {
+    Wire.begin();
+    Wire.setClock(400000L);
+
     // Failed to find display
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
     {
@@ -18,8 +25,7 @@ void setup()
             ;
     }
 
-    // For debug
-    Serial.begin(9600);
+    DEBUG_BEGIN(9600);
 
     // Set pin modes
     pinMode(PIN_BUZ, OUTPUT);
@@ -36,7 +42,7 @@ void setup()
 
     // Draw AdaFruit logo
     display.display();
-    delay(1000);
+    delay(500);
 }
 
 void loop()
@@ -44,5 +50,4 @@ void loop()
     // Just menu
     // TODO : Add sleep mode
     startMenu();
-    delay(1000);
 }
