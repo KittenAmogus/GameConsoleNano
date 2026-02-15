@@ -1,29 +1,38 @@
-/*#ifndef SNAKE_H
+#ifndef SNAKE_H
 #define SNAKE_H
 
-// Integer defines, pin defines
 #include <Arduino.h>
 
-// Some utils, idk
-#include "utils/joystick.h"
+#include "utils/memory.h"
 #include "utils/display.h"
-#include "utils/vector.h"
+#include "utils/joystick.h"
+#include "utils/game-over.h"
 
-// Snake size
-#define SNAKE_MAX_LENGTH 64
-#define SNAKE_INIT_LENGTH 3
+extern JoyStick joyStick;
+extern Adafruit_SSD1306 display;
 
-// Field size
-#define SNAKE_GRID_SIZE 4
-#define SNAKE_GRID_WIDTH 32
-#define SNAKE_GRID_HEIGHT 16
+extern GameData gameData;
+extern GlobalData globalData;
 
-// in X ms will redraw, move
-// But user input gets as fast as can
-#define SNAKE_TICK_TIME 150
+#define global globalData
+#define game gameData.snakeData
 
-// For menu
+// Snake
+#define SNAKE_LENGTH 32
+#define SNAKE_TICK_TIME 100
+#define SNAKE_APPLE_TICK_TIME 150
+
+// Grid
+#define SNAKE_GRID_SIZE 8
+#define SNAKE_GRID_WIDTH (SCREEN_WIDTH >> 3)
+#define SNAKE_GRID_HEIGHT (SCREEN_HEIGHT >> 3)
+#define SNAKE_CENTERX (SNAKE_GRID_WIDTH >> 1)
+#define SNAKE_CENTERY (SNAKE_GRID_WIDTH >> 1)
+
+#define SNAKE_INITIAL_LENGTH 3
+
+#define START_DIRECTION {1, 0}
+
 void startSnake();
 
-#endif SNAKE_H
-*/
+#endif

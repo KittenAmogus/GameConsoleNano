@@ -33,20 +33,32 @@ typedef struct FlappyData
 } FlappyData;
 
 // -- Snake data
+typedef struct SnakePos
+{
+    uint8_t x : 4;
+    uint8_t y : 3;
+    uint8_t unused : 1;
+} SnakePos;
+
 typedef struct SnakeData
 {
-    uint8_t snake[16];
+    SnakePos snake[32];
 
-    uint8_t headIdx : 4;
-    uint8_t tailIdx : 4;
+    uint8_t headIdx : 5;
+    uint8_t tailIdx : 5;
 
-    uint8_t isAppleWhite : 1;
-    uint8_t isOnRight : 1;
     uint8_t isAppleOnRight : 1;
-    uint8_t unusedBits : 5;
+    uint8_t isHeadOnRight : 1;
+    uint8_t isTailOnRight : 1;
+    uint8_t isAppleBig : 1;
+    uint8_t unused : 2;
 
-    uint8_t applePosX : 4;
-    uint8_t applePosY : 4;
+    int8_t curDirectionX : 2;
+    int8_t curDirectionY : 2;
+    int8_t nextDirectionX : 2;
+    int8_t nextDirectionY : 2;
+
+    SnakePos applePos;
 } SnakeData;
 
 // -- Tetris data
@@ -62,6 +74,8 @@ typedef struct Figure
 typedef struct TetrisData
 {
     uint8_t gameField[25];
+    uint16_t tickTime : 10; // Up to 1024 ms
+    uint16_t unused : 6;
     Figure figure;
 } TetrisData;
 

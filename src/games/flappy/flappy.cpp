@@ -1,10 +1,4 @@
 #include "flappy.h"
-
-extern GlobalData globalData;
-extern GameData gameData;
-#define global globalData
-#define game gameData.flappyData
-
 static void prepareFlappy()
 {
     memset(&game, 0, sizeof(game));
@@ -24,27 +18,27 @@ static void draw()
         36, 16,
         BLACK);
 
-    for (uint8_t i = 0; i < PIPE_COUNT; i++)
+    for (uint8_t i = 0; i < FLAPPY_PIPE_COUNT; i++)
     {
         FlappyPipe *pipe = (i == 0 ? &game.firstPipe : &game.secondPipe);
 
         // Draw pipe
         display.fillRect(
             pipe->x, 0,
-            PIPE_WIDTH, SCREEN_HEIGHT,
+            FLAPPY_PIPE_WIDTH, SCREEN_HEIGHT,
             WHITE);
 
         // Draw gap
         display.fillRect(
             pipe->x, pipe->offsetY,
-            PIPE_GAP_SIZE, PIPE_GAP_SIZE,
+            FLAPPY_PIPE_GAP_SIZE, FLAPPY_PIPE_GAP_SIZE,
             BLACK);
     }
 
     // Draw bird
     display.fillRect(
-        BIRD_X, (game.birdPositionY >> FLAPPY_DP_COUNT),
-        BIRD_SIZE, BIRD_SIZE,
+        FLAPPY_BIRD_X, (game.birdPositionY >> FLAPPY_DP_COUNT),
+        FLAPPY_BIRD_SIZE, FLAPPY_BIRD_SIZE,
         WHITE);
 
     // Draw score
@@ -57,33 +51,17 @@ static void draw()
     display.display();
 }
 
-static void onGameOver()
-{
-    draw();
-    delay(250);
-    display.clearDisplay();
-
-    display.setTextColor(WHITE);
-    display.setTextSize(2);
-    display.setCursor(10, 20);
-    display.print(F("SCORE: "));
-    display.print(global.gameScore);
-
-    display.display();
-    delay(500);
-}
-
 static bool collideWithPipe(FlappyPipe *pipe)
 {
     int16_t shiftedY = (game.birdPositionY >> FLAPPY_DP_COUNT);
 
-    if (pipe->x + PIPE_WIDTH < BIRD_X || pipe->x - BIRD_SIZE > BIRD_X)
+    if (pipe->x + FLAPPY_PIPE_WIDTH < FLAPPY_BIRD_X || pipe->x - FLAPPY_BIRD_SIZE > FLAPPY_BIRD_X)
     {
         return false;
     }
 
     if (shiftedY >= pipe->offsetY &&
-        shiftedY <= pipe->offsetY + PIPE_GAP_SIZE - BIRD_SIZE)
+        shiftedY <= pipe->offsetY + FLAPPY_PIPE_GAP_SIZE - FLAPPY_BIRD_SIZE)
     {
         if (!pipe->claimed)
         {
@@ -109,12 +87,12 @@ void startFlappy()
 {
     prepareFlappy();
 
-    for (uint8_t i = 0; i < PIPE_COUNT; i++)
+    for (uint8_t i = 0; i < FLAPPY_PIPE_COUNT; i++)
     {
         FlappyPipe *pipe = (i == 0 ? &game.firstPipe : &game.secondPipe);
         pipe->claimed = false;
-        pipe->x = SCREEN_WIDTH + (i * PIPE_DISTANCE);
-        pipe->offsetY = random(PIPE_MIN_Y, PIPE_MAX_Y);
+        pipe->x = SCREEN_WIDTH + (i * FLAPPY_PIPE_DISTANCE);
+        pipe->offsetY = random(FLAPPY_PIPE_MIN_Y, FLAPPY_PIPE_MAX_Y);
     }
 
     uint16_t joyStickY;
@@ -136,8 +114,8 @@ void startFlappy()
 
             // Clear bird
             display.fillRect(
-                BIRD_X, game.birdPositionY >> FLAPPY_DP_COUNT,
-                BIRD_SIZE, BIRD_SIZE,
+                FLAPPY_BIRD_X, game.birdPositionY >> FLAPPY_DP_COUNT,
+                FLAPPY_BIRD_SIZE, FLAPPY_BIRD_SIZE,
                 BLACK);
 
             game.birdPositionY += (game.birdVelocityY);
@@ -145,26 +123,26 @@ void startFlappy()
 
             uint8_t birdPosY = (game.birdPositionY >> FLAPPY_DP_COUNT);
 
-            if (birdPosY > SCREEN_HEIGHT - BIRD_SIZE)
+            if (birdPosY > SCREEN_HEIGHT - FLAPPY_BIRD_SIZE)
             {
                 onGameOver();
                 return;
             }
 
-            for (uint8_t pipeId = 0; pipeId < PIPE_COUNT; pipeId++)
+            for (uint8_t pipeId = 0; pipeId < FLAPPY_PIPE_COUNT; pipeId++)
             {
                 FlappyPipe *pipe = (pipeId == 0 ? &game.firstPipe : &game.secondPipe);
                 display.fillRect(
                     pipe->x, 0,
-                    PIPE_WIDTH, SCREEN_HEIGHT,
+                    FLAPPY_PIPE_WIDTH, SCREEN_HEIGHT,
                     BLACK);
-                pipe->x -= PIPE_SPEED;
+                pipe->x -= FLAPPY_PIPE_SPEED;
 
                 if (pipe->x >= 0xF0)
                 {
                     pipe->claimed = false;
                     pipe->x = SCREEN_WIDTH;
-                    pipe->offsetY = random(PIPE_MIN_Y, PIPE_MAX_Y);
+                    pipe->offsetY = random(FLAPPY_PIPE_MIN_Y, FLAPPY_PIPE_MAX_Y);
                 }
                 else if (collideWithPipe(pipe))
                 {

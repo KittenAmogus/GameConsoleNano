@@ -2,7 +2,7 @@
 
 // Include all games, apps
 #include "games/flappy/flappy.h"
-// #include "games/snake/snake.h"
+#include "games/snake/snake.h"
 
 extern GlobalData globalData;
 #define global globalData
@@ -10,13 +10,14 @@ extern GlobalData globalData;
 // On button press
 static void startGame()
 {
+    randomSeed(analogRead(A3));
     switch (global.gameScore)
     {
     case 0:
         startFlappy();
         break;
     case 1:
-        // startSnake();
+        startSnake();
         break;
     }
 }

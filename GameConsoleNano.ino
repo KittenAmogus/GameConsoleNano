@@ -25,6 +25,8 @@ void setup()
             ;
     }
 
+    display.setTextWrap(false);
+
     DEBUG_BEGIN(9600);
 
     // Set pin modes
