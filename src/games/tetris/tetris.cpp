@@ -1,5 +1,7 @@
 #include "tetris.h"
 
+const uint16_t lineScores[5] = {0, 100, 300, 500, 800};
+
 void createFigure()
 {
     // Clear previous figure data
@@ -8,6 +10,7 @@ void createFigure()
     // Create figure
     game.figure.offsetX = (TETRIS_GRID_WIDTH >> 1);
     game.figure.type = random(0, 7);
+    game.figure.updatedScore = true;
 }
 
 static void prepareTetris()
@@ -32,8 +35,8 @@ static void drawBlock(uint8_t x, uint8_t y)
     x = ((x << 1) + x) << 1;
     y = ((y << 1) + y) << 1;
 
-    x -= TETRIS_OFFSET_X;
-    y -= TETRIS_OFFSET_Y;
+    x += TETRIS_OFFSET_X;
+    y += TETRIS_OFFSET_Y;
 
     // Full block with padding
     display.fillRect(
@@ -63,6 +66,17 @@ static void drawFull()
     display.display();
 }
 
+static void drawScore()
+{
+    game.figure.updatedScore = false;
+    display.fillRect(0, 0, SCREEN_WIDTH, TETRIS_OFFSET_Y, BLACK);
+    display.setCursor(0, 0);
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
+    display.print(global.gameScore);
+    Serial.println(global.gameScore);
+}
+
 static void draw()
 {
     global.needRedraw = false;
@@ -76,9 +90,14 @@ static void draw()
             localX += game.figure.offsetX;
             localY += game.figure.offsetY;
 
-            drawBlock(localX, localY);
+            if ((localX >= 0 && localX < TETRIS_GRID_WIDTH) && (localY >= 0 && localY < TETRIS_GRID_HEIGHT))
+                drawBlock(localX, localY);
         }
     }
+
+    if (game.figure.updatedScore)
+        drawScore();
+
     display.display();
 }
 
@@ -92,8 +111,9 @@ bool isLineFull(uint8_t y)
     return true;
 }
 
-bool clearLine(uint8_t lineY)
+void clearLine(uint8_t lineY)
 {
+    display.fillRect(0, (((lineY << 1) + lineY) << 1) + TETRIS_OFFSET_Y, SCREEN_WIDTH, TETRIS_GRID_SIZE, INVERSE);
     global.needFullRedraw = true;
     for (uint8_t x = 0; x < TETRIS_GRID_WIDTH; x++)
     {
@@ -103,7 +123,7 @@ bool clearLine(uint8_t lineY)
 
 void moveLines()
 {
-    for (int8_t y = TETRIS_GRID_HEIGHT; y > 1; --y)
+    for (int8_t y = TETRIS_GRID_HEIGHT - 1; y > 0; y--)
     {
         for (uint8_t x = 0; x < TETRIS_GRID_WIDTH; x++)
         {
@@ -119,17 +139,47 @@ void moveLines()
 
 void checkLines()
 {
-    for (int8_t y = TETRIS_GRID_HEIGHT - 1; y >= 0; y--)
+    uint8_t lineCleared = 0;
+    int8_t y = TETRIS_GRID_HEIGHT - 1;
+    do
     {
         if (isLineFull(y))
         {
             global.needFullRedraw = true;
             clearLine(y);
             moveLines();
-            y++;
-            if (y >= TETRIS_GRID_HEIGHT)
-                y = TETRIS_GRID_HEIGHT - 1;
+
+            lineCleared++;
         }
+        else
+        {
+            y--;
+        }
+    } while (y > 0);
+
+    global.gameScore += lineScores[lineCleared];
+    game.figure.updatedScore = true;
+
+    if (lineCleared > 0)
+    {
+        if (lineCleared == 4)
+            display.invertDisplay(1);
+
+        display.display();
+        global.needFullRedraw = true;
+
+        global.lastFrame = millis();
+        while (true)
+        {
+            if (millis() - global.lastFrame > 300)
+                break;
+
+            if (joyStick.getX() < CENTER - TRESHOLD)
+                break;
+        }
+
+        if (lineCleared == 4)
+            display.invertDisplay(0);
     }
 }
 
@@ -158,6 +208,30 @@ bool checkCollisionWithField(int8_t nextX, int8_t nextY, uint8_t nextRot)
 
 bool checkCollisionWithBorders(int8_t nextX, int8_t nextY, uint8_t nextRot)
 {
+    // Используем nextRot, а не текущий rotateId!
+    uint16_t mask = getShapeMask(game.figure.type, nextRot);
+
+    for (uint8_t i = 0; i < 16; i++)
+    {
+        if (mask & (0x8000 >> i))
+        {
+            int8_t fx = nextX + (i & 3);  // координата X конкретного блока
+            int8_t fy = nextY + (i >> 2); // координата Y конкретного блока
+
+            // Проверка ВСЕХ границ
+            if (fx < 0 || fx >= TETRIS_GRID_WIDTH ||
+                fy < 0 || fy >= TETRIS_GRID_HEIGHT)
+            {
+                return true; // Столкновение со стеной или полом
+            }
+        }
+    }
+    return false;
+}
+
+/*
+bool checkCollisionWithBorders(int8_t nextX, int8_t nextY, uint8_t nextRot)
+{
     uint16_t mask = getShapeMask(game.figure.type, game.figure.rotateId);
 
     for (uint8_t i = 0; i < 16; i++)
@@ -173,6 +247,7 @@ bool checkCollisionWithBorders(int8_t nextX, int8_t nextY, uint8_t nextRot)
     }
     return false;
 }
+    */
 
 static void clearFigure(uint8_t y)
 {
@@ -188,8 +263,8 @@ static void clearFigure(uint8_t y)
             localX = ((localX << 1) + localX) << 1;
             localY = ((localY << 1) + localY) << 1;
 
-            localX -= TETRIS_OFFSET_X;
-            localY -= TETRIS_OFFSET_Y;
+            localX += TETRIS_OFFSET_X;
+            localY += TETRIS_OFFSET_Y;
 
             display.fillRect(
                 localX, localY,
@@ -203,7 +278,8 @@ static void rotateFigure(int8_t rotation)
 {
     uint8_t nextRot = (game.figure.rotateId + rotation) & 3;
     // Проверяем, не мешает ли что-то в новой позиции поворота
-    if (!checkCollisionWithField(game.figure.offsetX, game.figure.offsetY, nextRot))
+    if (!checkCollisionWithField(game.figure.offsetX, game.figure.offsetY, nextRot) &&
+        !checkCollisionWithBorders(game.figure.offsetX, game.figure.offsetY, nextRot))
     {
         clearFigure(game.figure.offsetY);
         game.figure.rotateId = nextRot;
@@ -232,14 +308,16 @@ static void handleInput()
 
         if (!(
                 checkCollisionWithField(nextX, game.figure.offsetY, game.figure.rotateId) ||
-                checkCollisionWithBorders(nextX, game.figure.offsetY, game.figure.rotateId)) ||
-            millis() - game.lastMovedXMillis > TETRIS_MOVE_X_DELAY)
+                checkCollisionWithBorders(nextX, game.figure.offsetY, game.figure.rotateId)))
 
         {
-            clearFigure(game.figure.offsetY);
-            game.figure.offsetX = nextX;
-            global.needRedraw = true;
-            game.lastMovedXMillis = millis();
+            if (millis() - game.lastMovedXMillis > TETRIS_MOVE_X_DELAY)
+            {
+                clearFigure(game.figure.offsetY);
+                game.figure.offsetX = nextX;
+                global.needRedraw = true;
+                game.lastMovedXMillis = millis();
+            }
         }
     }
 
@@ -247,10 +325,10 @@ static void handleInput()
     {
         if (global.joyStickData.isOverCenterX)
         {
+            rotateFigure(1);
         }
         else
         {
-            rotateFigure(1);
         }
     }
 
@@ -261,6 +339,8 @@ static void handleInput()
 void bakeFigure()
 {
     global.gameScore += 20;
+    game.figure.updatedScore = true;
+
     uint16_t mask = getShapeMask(game.figure.type, game.figure.rotateId);
 
     for (uint8_t i = 0; i < 16; i++)
@@ -315,14 +395,25 @@ void startTetris()
                     game.figure.rotateId))
             {
                 bakeFigure();
+                global.needFullRedraw = true;
                 createFigure();
+                if (checkCollisionWithField(game.figure.offsetX, game.figure.offsetY, game.figure.rotateId))
+                {
+                    display.setRotation(0);
+                    onGameOver();
+                    return;
+                }
             }
             else
             {
                 clearFigure(game.figure.offsetY);
                 game.figure.offsetY++;
+
                 if (game.tickTimePower == TETRIS_TICK_FAST)
+                {
                     global.gameScore++;
+                    game.figure.updatedScore = true;
+                }
             }
         }
 

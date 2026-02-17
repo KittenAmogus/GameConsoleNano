@@ -64,11 +64,12 @@ typedef struct SnakeData
 // -- Tetris data
 typedef struct Figure
 {
-    uint16_t rotateId : 2;
-    uint16_t offsetX : 4;
-    uint16_t offsetY : 5;
-    uint16_t type : 3;
-    uint16_t unused : 2;
+    int16_t offsetX : 8;
+    int16_t offsetY : 8;
+    uint8_t rotateId : 2;
+    uint8_t type : 3;
+    uint8_t updatedScore : 1;
+    uint8_t unused : 2;
 } Figure;
 
 typedef struct TetrisData

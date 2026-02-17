@@ -20,7 +20,7 @@ extern GlobalData globalData;
 // Time
 #define TETRIS_TICK_TIME_START 15 // 64 *
 #define TETRIS_TICK_TIME_MIN 2
-#define TETRIS_MOVE_X_DELAY 1400
+#define TETRIS_MOVE_X_DELAY 100
 #define TETRIS_TICK_FAST 1
 
 // Size
@@ -29,8 +29,8 @@ extern GlobalData globalData;
 #define TETRIS_GRID_SIZE 6
 
 // Offset
-#define TETRIS_OFFSET_X -2
-#define TETRIS_OFFSET_Y -8
+#define TETRIS_OFFSET_X 2
+#define TETRIS_OFFSET_Y 8
 
 // Redefinition of screen size(screen is rotated)
 #define TETRIS_SCREEN_WIDTH SCREEN_HEIGHT
