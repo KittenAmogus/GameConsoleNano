@@ -30,6 +30,28 @@ inline uint16_t getShapeMask(uint8_t type, uint8_t rotation)
     return pgm_read_word(&(SHAPES[type][rotation & 3]));
 }
 
+static void drawGhostBlock(uint8_t x, uint8_t y)
+{
+    x = ((x << 1) + x) << 1;
+    y = ((y << 1) + y) << 1;
+
+    x += TETRIS_OFFSET_X;
+    y += TETRIS_OFFSET_Y;
+
+    // Full block with padding
+    display.fillRect(
+        x + 1, y + 1,
+        TETRIS_GRID_SIZE - 2, TETRIS_GRID_SIZE - 2,
+        WHITE);
+
+    /*// Hole in center
+    display.fillRect(
+        x + 2, y + 2,
+        TETRIS_GRID_SIZE - 4, TETRIS_GRID_SIZE - 4,
+        BLACK);
+    */
+}
+
 static void drawBlock(uint8_t x, uint8_t y)
 {
     x = ((x << 1) + x) << 1;
@@ -51,56 +73,7 @@ static void drawBlock(uint8_t x, uint8_t y)
         BLACK);
 }
 
-static void drawFull()
-{
-    global.needFullRedraw = false;
-    display.clearDisplay();
-    for (uint8_t y = 0; y < TETRIS_GRID_HEIGHT; y++)
-    {
-        for (uint8_t x = 0; x < TETRIS_GRID_WIDTH; x++)
-        {
-            if (TetrisHelper::getPixel(game.gameField, x, y))
-                drawBlock(x, y);
-        }
-    }
-    display.display();
-}
-
-static void drawScore()
-{
-    game.figure.updatedScore = false;
-    display.fillRect(0, 0, SCREEN_WIDTH, TETRIS_OFFSET_Y, BLACK);
-    display.setCursor(0, 0);
-    display.setTextColor(WHITE);
-    display.setTextSize(1);
-    display.print(global.gameScore);
-}
-
-static void draw()
-{
-    global.needRedraw = false;
-    uint16_t mask = getShapeMask(game.figure.type, game.figure.rotateId);
-    for (uint8_t i = 0; i < 16; i++)
-    {
-        if (mask & (0x8000 >> i))
-        {
-            uint8_t localX = i & 3;
-            uint8_t localY = i >> 2;
-            localX += game.figure.offsetX;
-            localY += game.figure.offsetY;
-
-            if ((localX >= 0 && localX < TETRIS_GRID_WIDTH) && (localY >= 0 && localY < TETRIS_GRID_HEIGHT))
-                drawBlock(localX, localY);
-        }
-    }
-
-    if (game.figure.updatedScore)
-        drawScore();
-
-    display.display();
-}
-
-bool isLineFull(uint8_t y)
+static bool isLineFull(uint8_t y)
 {
     for (uint8_t x = 0; x < 10; x++)
     {
@@ -110,7 +83,7 @@ bool isLineFull(uint8_t y)
     return true;
 }
 
-void clearLine(uint8_t lineY)
+static void clearLine(uint8_t lineY)
 {
     display.fillRect(0, (((lineY << 1) + lineY) << 1) + TETRIS_OFFSET_Y, SCREEN_WIDTH, TETRIS_GRID_SIZE, INVERSE);
     global.needFullRedraw = true;
@@ -120,7 +93,7 @@ void clearLine(uint8_t lineY)
     }
 }
 
-void moveLines()
+static void moveLines()
 {
     for (int8_t y = TETRIS_GRID_HEIGHT - 1; y > 0; y--)
     {
@@ -136,7 +109,7 @@ void moveLines()
         TetrisHelper::setPixel(game.gameField, x, 0, false);
 }
 
-void checkLines()
+static void checkLines()
 {
     uint8_t lineCleared = 0;
     int8_t y = TETRIS_GRID_HEIGHT - 1;
@@ -182,7 +155,7 @@ void checkLines()
     }
 }
 
-bool checkCollisionWithField(int8_t nextX, int8_t nextY, uint8_t nextRot)
+static bool checkCollisionWithField(int8_t nextX, int8_t nextY, uint8_t nextRot)
 {
     uint16_t mask = getShapeMask(game.figure.type, nextRot);
 
@@ -205,48 +178,106 @@ bool checkCollisionWithField(int8_t nextX, int8_t nextY, uint8_t nextRot)
     return false;
 }
 
-bool checkCollisionWithBorders(int8_t nextX, int8_t nextY, uint8_t nextRot)
+static bool checkCollisionWithBorders(int8_t nextX, int8_t nextY, uint8_t nextRot)
 {
-    // Используем nextRot, а не текущий rotateId!
     uint16_t mask = getShapeMask(game.figure.type, nextRot);
 
     for (uint8_t i = 0; i < 16; i++)
     {
         if (mask & (0x8000 >> i))
         {
-            int8_t fx = nextX + (i & 3);  // координата X конкретного блока
-            int8_t fy = nextY + (i >> 2); // координата Y конкретного блока
+            int8_t fx = nextX + (i & 3);
+            int8_t fy = nextY + (i >> 2);
 
-            // Проверка ВСЕХ границ
             if (fx < 0 || fx >= TETRIS_GRID_WIDTH ||
                 fy < 0 || fy >= TETRIS_GRID_HEIGHT)
             {
-                return true; // Столкновение со стеной или полом
+                return true;
             }
         }
     }
     return false;
 }
 
-/*
-bool checkCollisionWithBorders(int8_t nextX, int8_t nextY, uint8_t nextRot)
+static void drawGhost()
 {
+    game.figure.ghostOffsetY = game.figure.offsetY;
+    do
+    {
+        game.figure.ghostOffsetY++;
+    } while (!checkCollisionWithField(game.figure.offsetX, game.figure.ghostOffsetY + 1, game.figure.rotateId));
+
+    if (game.figure.ghostOffsetY <= game.figure.offsetY + 1)
+        return;
+
     uint16_t mask = getShapeMask(game.figure.type, game.figure.rotateId);
 
     for (uint8_t i = 0; i < 16; i++)
     {
         if (mask & (0x8000 >> i))
         {
-            int8_t fx = nextX + (i & 3);  // i % 4
-            int8_t fy = nextY + (i >> 2); // i / 4
+            uint8_t localX = i & 3;
+            uint8_t localY = i >> 2;
+            localX += game.figure.offsetX;
+            localY += game.figure.ghostOffsetY;
 
-            if (fx < 0 || fx >= TETRIS_GRID_WIDTH || fy >= TETRIS_GRID_HEIGHT)
-                return true;
+            if ((localX >= 0 && localX < TETRIS_GRID_WIDTH) && (localY >= 0 && localY < TETRIS_GRID_HEIGHT))
+                drawGhostBlock(localX, localY);
         }
     }
-    return false;
 }
-    */
+
+static void drawFull()
+{
+    global.needFullRedraw = false;
+    display.clearDisplay();
+    for (uint8_t y = 0; y < TETRIS_GRID_HEIGHT; y++)
+    {
+        for (uint8_t x = 0; x < TETRIS_GRID_WIDTH; x++)
+        {
+            if (TetrisHelper::getPixel(game.gameField, x, y))
+                drawBlock(x, y);
+        }
+    }
+    display.display();
+}
+
+static void drawScore()
+{
+    game.figure.updatedScore = false;
+    display.fillRect(0, 0, SCREEN_WIDTH, TETRIS_OFFSET_Y, BLACK);
+    display.setCursor(0, 0);
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
+    display.print(global.gameScore);
+}
+
+static void draw()
+{
+    global.needRedraw = false;
+    uint16_t mask = getShapeMask(game.figure.type, game.figure.rotateId);
+
+    drawGhost();
+
+    for (uint8_t i = 0; i < 16; i++)
+    {
+        if (mask & (0x8000 >> i))
+        {
+            uint8_t localX = i & 3;
+            uint8_t localY = i >> 2;
+            localX += game.figure.offsetX;
+            localY += game.figure.offsetY;
+
+            if ((localX >= 0 && localX < TETRIS_GRID_WIDTH) && (localY >= 0 && localY < TETRIS_GRID_HEIGHT))
+                drawBlock(localX, localY);
+        }
+    }
+
+    if (game.figure.updatedScore)
+        drawScore();
+
+    display.display();
+}
 
 static void clearFigure(uint8_t y)
 {
@@ -276,7 +307,7 @@ static void clearFigure(uint8_t y)
 static void rotateFigure(int8_t rotation)
 {
     uint8_t nextRot = (game.figure.rotateId + rotation) & 3;
-    // Проверяем, не мешает ли что-то в новой позиции поворота
+
     if (!checkCollisionWithField(game.figure.offsetX, game.figure.offsetY, nextRot) &&
         !checkCollisionWithBorders(game.figure.offsetX, game.figure.offsetY, nextRot))
     {
@@ -420,6 +451,9 @@ void startTetris()
         if (global.needFullRedraw)
             drawFull();
         else if (global.needRedraw)
+        {
             draw();
+            clearFigure(game.figure.ghostOffsetY);
+        }
     }
 }

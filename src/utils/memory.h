@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // Disable serial
-#define DEBUG 1
+#define DEBUG 0
 
 #if DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -66,6 +66,7 @@ typedef struct Figure
 {
     int16_t offsetX : 8;
     int16_t offsetY : 8;
+    int8_t ghostOffsetY;
     uint8_t rotateId : 2;
     uint8_t type : 3;
     uint8_t updatedScore : 1;
