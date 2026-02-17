@@ -74,7 +74,6 @@ static void drawScore()
     display.setTextColor(WHITE);
     display.setTextSize(1);
     display.print(global.gameScore);
-    Serial.println(global.gameScore);
 }
 
 static void draw()
