@@ -66,5 +66,9 @@
     [ "bz1:1", "bb1:24b.h", "", [ "$bb" ] ],
     [ "bz1:2", "bb1:25b.h", "", [ "$bb" ] ]
   ],
-  "dependencies": {}
+  "dependencies": {},
+  "vcd": [
+    { "component": "nano:13", "name": "led" },
+    { "component": "nano:TX", "name": "serial_tx" }
+  ]
 }

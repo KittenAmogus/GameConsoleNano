@@ -1,0 +1,24 @@
+CompileFlags:
+  Add: [
+    "-Isrc",          # Чтобы #include "utils/..." искал в src/utils/
+    "-I.",            # Чтобы искать в корне
+    "-I/home/kitten/Arduino/libraries/**",
+    "-I/home/kitten/.arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino",
+    "-I/home/kitten/.arduino15/packages/arduino/hardware/avr/1.8.6/variants/eightanaloginputs", # Для Nano обычно это
+    "-D__AVR_ATmega328P__",
+    "-include", "Arduino.h",
+    "-Wno-everything"
+  ]
+Index:
+  Background: Build
+
+  CompileFlags:
+  Add: 
+    - "-Isrc"
+    - "-I."
+    - "-I/home/kitten/Arduino/libraries"
+    - "-D__AVR_ATmega328P__"
+    - "-include"
+    - "Arduino.h"
+  CompilationDatabase: "."
+

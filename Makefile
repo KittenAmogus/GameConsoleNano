@@ -2,6 +2,9 @@ TYPE = nano
 MODEL = 'arduino:avr:$(TYPE)'
 PORT = /dev/ttyUSB0
 
+WOKWI = wokwi-cli
+WOKWIFLAGS = --interactive --vcd-file output.vcd
+
 BRATE=9600
 
 ACLI = arduino-cli
@@ -12,11 +15,15 @@ MAIN = ./GameConsoleNano.ino
 
 .PHONY: all compile upload monitor clean
 
-all: clean compile
+all: clean compile wokwi
 
 compile:
 	@echo "-- Compiling..."
 	$(ACLI) compile $(AFLAGS_C) -b $(MODEL) $(MAIN)
+
+wokwi:
+	@echo "-- Run simulation with wokwi..."
+	$(WOKWI) . $(WOKWIFLAGS)
 
 upload: compile
 	@echo "-- Flashing..."
