@@ -13,7 +13,7 @@ static void prepareSnake()
 
     game.applePos = {SNAKE_CENTERX + 3, SNAKE_CENTERY};
 
-    for (int8_t i = SNAKE_INITIAL_LENGTH; i >= 0; i--)
+    for (int8_t i = SNAKE_INITIAL_LENGTH - 1; i > 0; i--)
     {
         uint8_t posX, posY;
         posX = SNAKE_CENTERX - i;
@@ -46,6 +46,12 @@ static void draw()
         headPos.x << 3, headPos.y << 3,
         SNAKE_GRID_SIZE, SNAKE_GRID_SIZE,
         WHITE);
+
+    // Add hole for better vision
+    display.fillRect(
+        (headPos.x << 3) + 2, (headPos.y << 3) + 2,
+        SNAKE_GRID_SIZE - 4, SNAKE_GRID_SIZE - 4,
+        BLACK);
 
     display.fillRect(
         game.applePos.x << 3, game.applePos.y << 3,
